@@ -18,6 +18,11 @@ class OrthoWindow(QWidget):
         self.ui=Ui_Orthogonal_Form()
         self.ui.setupUi(self)
 
+        self.imR=[]
+        self.imL=[]
+        self.Pix=QPixmap()
+        self.myIm=QImage()
+
         self.rightScn = QGraphicsScene()
         self.leftScn = QGraphicsScene()
         self.ui.rightView.setScene(self.rightScn)
@@ -28,50 +33,83 @@ class OrthoWindow(QWidget):
         self.timer.timeout.connect(self.updateIm) 
         self.ui.runButton.clicked.connect(self.startTimer)
 
+        self.prevColor=0
+        self.curColor=0
+        self.threshList=[[0,0,0,255,255,255],\
+                         [5,5,5,100,100,100],\
+                         [0,0,0,255,255,255],\
+                         [0,0,0,255,255,255]]
+
+        self.ui.colorChooseBox.valueChanged.connect(self.updateColor)
+        # self.ui.colorChooseBox.valueChanged.connect(self.updateHSV)
+
+        # self.ui.minHBar.valueChanged.connect(self.updateThreshList)
+        # self.ui.minSBar.valueChanged.connect(self.updateThreshList)
+        # self.ui.minVBar.valueChanged.connect(self.updateThreshList)
+        # self.ui.maxHBar.valueChanged.connect(self.updateThreshList)
+        # self.ui.maxSBar.valueChanged.connect(self.updateThreshList)
+        # self.ui.maxVBar.valueChanged.connect(self.updateThreshList)
+    
+    # def updateThreshList(self,newValue):
+    #     ipdb.set_trace()
+    #     self.threshList[self.ui.colorChooseBox.value()][0]=self.ui.minHBar.value()
+    #     self.threshList[self.ui.colorChooseBox.value()][1]=self.ui.minSBar.value()
+    #     self.threshList[self.ui.colorChooseBox.value()][2]=self.ui.minVBar.value()
+    #     self.threshList[self.ui.colorChooseBox.value()][3]=self.ui.maxHBar.value()
+    #     self.threshList[self.ui.colorChooseBox.value()][4]=self.ui.maxSBar.value()
+    #     self.threshList[self.ui.colorChooseBox.value()][5]=self.ui.maxVBar.value()
+
+    def updateColor(self,curColorBox):
+        self.prevColor=self.curColor
+        self.curColor=curColorBox
+
+    # def updateHSV(self,colorNum):
+        self.threshList[self.prevColor][0]=self.ui.minHBar.value()
+        self.threshList[self.prevColor][1]=self.ui.minSBar.value()
+        self.threshList[self.prevColor][2]=self.ui.minVBar.value()
+        self.threshList[self.prevColor][3]=self.ui.maxHBar.value()
+        self.threshList[self.prevColor][4]=self.ui.maxSBar.value()
+        self.threshList[self.prevColor][5]=self.ui.maxVBar.value()
+        # ipdb.set_trace()
+        self.ui.minHBar.setValue(self.threshList[curColorBox][0])
+        self.ui.minSBar.setValue(self.threshList[curColorBox][1])
+        self.ui.minVBar.setValue(self.threshList[curColorBox][2])
+        self.ui.maxHBar.setValue(self.threshList[curColorBox][3])
+        self.ui.maxSBar.setValue(self.threshList[curColorBox][4])
+        self.ui.maxVBar.setValue(self.threshList[curColorBox][5])
+
     def startTimer(self):
         self.timer.start(50)
 
     def updateIm(self):
-        ptx,pty,imL,imR=self.calculate3DPoint(self.camera.camL.image,self.camera.camR.image,self.ui.maskCheck.isChecked())
+        ptx,pty,self.imL=self.calculate3DPoint(self.camera.camL.image,self.camera.camR.image,self.ui.maskCheck.isChecked())
 
-        if type(imL) != type(None) and type(imR) != type(None):
+        if type(self.imL) != type(None) and type(self.imR) != type(None):
             if not self.ui.maskCheck.isChecked():
-                imL = cv2.cvtColor(imL, cv2.COLOR_BGR2RGB)
-                myIm=QImage(imL,imL.shape[1],imL.shape[0],QtGui.QImage.Format_RGB888)
+                self.imL = cv2.cvtColor(self.imL, cv2.COLOR_BGR2RGB)
+                self.myIm=QImage(self.imL,self.imL.shape[1],self.imL.shape[0],QtGui.QImage.Format_RGB888)
             else:
-                myIm=QImage(imL,imL.shape[1],imL.shape[0],QtGui.QImage.Format_Grayscale8)
-            pix=QPixmap(myIm)
-            self.leftScn.addPixmap(pix)
-            if not self.ui.maskCheck.isChecked():
-                imR = cv2.cvtColor(imR, cv2.COLOR_BGR2RGB)
-                myIm=QImage(imR.data,imR.shape[1],imR.shape[0],QtGui.QImage.Format_RGB888)
-            else:
-                myIm=QImage(imR.data,imR.shape[1],imR.shape[0],QtGui.QImage.Format_Grayscale8)
-            # cvRGBImg = cv2.cvtColor(imR, cv2.COLOR_BGR2RGB)
+                self.myIm=QImage(self.imL,self.imL.shape[1],self.imL.shape[0],QtGui.QImage.Format_Grayscale8)
+            self.pix=QPixmap(self.myIm)
+            self.leftScn.addPixmap(self.pix)
+            # if not self.ui.maskCheck.isChecked():
+            #     self.imR = cv2.cvtColor(self.imR, cv2.COLOR_BGR2RGB)
+            #     self.myIm=QImage(self.imR.data,self.imR.shape[1],self.imR.shape[0],QtGui.QImage.Format_RGB888)
+            # else:
+            #     self.myIm=QImage(self.imR.data,self.imR.shape[1],imR.shape[0],QtGui.QImage.Format_Grayscale8)
+            # # cvRGBImg = cv2.cvtColor(imR, cv2.COLOR_BGR2RGB)
             
-            pix=QPixmap(myIm)
-            self.rightScn.addPixmap(pix)
+            # self.pix=QPixmap(self.myIm)
+            # self.rightScn.addPixmap(self.pix)
 
     def mask(self,img):
         # Convert to HSV and mask colors
-        # hMin = cv2.getTrackbarPos('min H',_WINDOW_NAME)
-        # hMax = cv2.getTrackbarPos('max H',_WINDOW_NAME)
-        # sMin = cv2.getTrackbarPos('min S',_WINDOW_NAME)
-        # sMax = cv2.getTrackbarPos('max S',_WINDOW_NAME)
-        # vMin = cv2.getTrackbarPos('min V',_WINDOW_NAME)
-        # vMax = cv2.getTrackbarPos('max V',_WINDOW_NAME)
-        hMin = self.ui.minHBar.value()
-        sMin = self.ui.minSBar.value()
-        vMin = self.ui.minVBar.value()
-        hMax = self.ui.maxHBar.value()
-        sMax = self.ui.maxSBar.value()
-        vMax = self.ui.maxVBar.value()
-        colorLower = (hMin, sMin, vMin)
-        colorUpper = (hMax, sMax, vMax)
+        colorLower = (self.threshList[self.curColor][0], self.threshList[self.curColor][1], self.threshList[self.curColor][2])
+        colorUpper = (self.threshList[self.curColor][3], self.threshList[self.curColor][4], self.threshList[self.curColor][5])
         blurred = cv2.GaussianBlur(img, (5, 5), 0)
         hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
         mask = cv2.inRange(hsv, colorLower, colorUpper )
-        # ipdb.set_trace()
+
         # Refine mask
         mask = cv2.erode(mask, None, iterations=2)
         mask = cv2.dilate(mask, None, iterations=2)
@@ -84,10 +122,6 @@ class OrthoWindow(QWidget):
         cnts = cv2.findContours(maskImage.copy(), cv2.RETR_EXTERNAL,
                                 cv2.CHAIN_APPROX_SIMPLE)[-2]
         center = None
-
-        # if cv2.getTrackbarPos('masked',_WINDOW_NAME) == 0:
-            # ipdb.set_trace()
-
 
         # only proceed if at least one contour was found
         if len(cnts) > 0:
@@ -141,10 +175,15 @@ class OrthoWindow(QWidget):
             cv2.circle(imageL, centerL, radiusL,(0, 255, 0), 1)
             cv2.circle(imageR, centerR, radiusR,(0, 255, 0), 1)
 
+
         if bMasked:
-            return centerL, centerR, maskImageL, maskImageR
+            return centerL, centerR, self.combineImages(maskImageL, maskImageR)
         else:
-            return centerL, centerR, imageL,imageR
+            return centerL, centerR, self.combineImages(imageL,imageR)
+        # if bMasked:
+        #     return centerL, centerR, maskImageL, maskImageR
+        # else:
+        #     return centerL, centerR, imageL,imageR
 
 if __name__ == "__main__":
     #Set up stereo camera struct

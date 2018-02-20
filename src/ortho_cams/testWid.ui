@@ -159,7 +159,11 @@
       </widget>
      </item>
      <item row="0" column="0">
-      <widget class="QSpinBox" name="spinBox"/>
+      <widget class="QSpinBox" name="colorChooseBox">
+       <property name="maximum">
+        <number>3</number>
+       </property>
+      </widget>
      </item>
      <item row="0" column="3">
       <spacer name="horizontalSpacer">
@@ -184,11 +188,6 @@
     </widget>
    </item>
   </layout>
-  <zorder>layoutWidget</zorder>
-  <zorder>label_7</zorder>
-  <zorder>layoutWidget_2</zorder>
-  <zorder>runButton</zorder>
-  <zorder>horizontalLayoutWidget</zorder>
  </widget>
  <resources/>
  <connections/>
