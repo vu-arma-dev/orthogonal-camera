@@ -6,7 +6,7 @@
 ## Step 1
 * open a new command windo
 * cd to ~catkin_ws_camera/devel_release and run "source setup.bash"
-* cd to ~catkin_ws_camera/src/dvrk_vision/launch/ and run "roslaunch just_cams.launch" 
+* cd to ~catkin_ws_camera/src/dvrk_vision/launch/ and run "roslaunch just_cams.launch single_image_from_camera:=false width:=640"
 
 ## Step 2
 * open a new command windo

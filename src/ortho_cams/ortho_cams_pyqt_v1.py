@@ -9,8 +9,7 @@ import rospy
 import ipdb
 import cv2
 import numpy as np 
-
-
+import pickle
 
 class OrthoWindow(QWidget):
     def __init__(self,camInput,masterWidget=None, parent=None):
@@ -39,27 +38,35 @@ class OrthoWindow(QWidget):
                          [5,5,5,100,100,100],\
                          [0,0,0,255,255,255],\
                          [0,0,0,255,255,255]]
+        self.loadColors()
 
-        self.ui.colorChooseBox.valueChanged.connect(self.updateColor)
-        # self.ui.colorChooseBox.valueChanged.connect(self.updateHSV)
+        self.ui.colorChooseBox.valueChanged.connect(self.updateColorList)
+        self.ui.saveBtn.clicked.connect(self.saveColors)
+        self.ui.loadBtn.clicked.connect(self.loadColors)
 
-        # self.ui.minHBar.valueChanged.connect(self.updateThreshList)
-        # self.ui.minSBar.valueChanged.connect(self.updateThreshList)
-        # self.ui.minVBar.valueChanged.connect(self.updateThreshList)
-        # self.ui.maxHBar.valueChanged.connect(self.updateThreshList)
-        # self.ui.maxSBar.valueChanged.connect(self.updateThreshList)
-        # self.ui.maxVBar.valueChanged.connect(self.updateThreshList)
-    
-    # def updateThreshList(self,newValue):
-    #     ipdb.set_trace()
-    #     self.threshList[self.ui.colorChooseBox.value()][0]=self.ui.minHBar.value()
-    #     self.threshList[self.ui.colorChooseBox.value()][1]=self.ui.minSBar.value()
-    #     self.threshList[self.ui.colorChooseBox.value()][2]=self.ui.minVBar.value()
-    #     self.threshList[self.ui.colorChooseBox.value()][3]=self.ui.maxHBar.value()
-    #     self.threshList[self.ui.colorChooseBox.value()][4]=self.ui.maxSBar.value()
-    #     self.threshList[self.ui.colorChooseBox.value()][5]=self.ui.maxVBar.value()
+    def closeEvent(self,closeEvent):
+        self.updateColorList(self.ui.colorChooseBox.value())
+        #save the color thresholds automatically on exit
+        self.saveColors()
 
-    def updateColor(self,curColorBox):
+    def saveColors(self):
+        self.updateColorList(self.ui.colorChooseBox.value())
+        with open('colorThresh.pickle','w') as pickFile:
+            pickle.dump(self.threshList,pickFile)
+
+    def loadColors(self):
+        with open('colorThresh.pickle','rb') as pickFile:
+            # ipdb.set_trace()
+            self.threshList=pickle.load(pickFile)
+            curColorBox=self.ui.colorChooseBox.value()
+            self.ui.minHBar.setValue(self.threshList[curColorBox][0])
+            self.ui.minSBar.setValue(self.threshList[curColorBox][1])
+            self.ui.minVBar.setValue(self.threshList[curColorBox][2])
+            self.ui.maxHBar.setValue(self.threshList[curColorBox][3])
+            self.ui.maxSBar.setValue(self.threshList[curColorBox][4])
+            self.ui.maxVBar.setValue(self.threshList[curColorBox][5])
+
+    def updateColorList(self,curColorBox):
         self.prevColor=self.curColor
         self.curColor=curColorBox
 
@@ -79,7 +86,7 @@ class OrthoWindow(QWidget):
         self.ui.maxVBar.setValue(self.threshList[curColorBox][5])
 
     def startTimer(self):
-        self.timer.start(50)
+        self.timer.start(100) #100ms=10 Hz
 
     def updateIm(self):
         ptx,pty,self.imL=self.calculate3DPoint(self.camera.camL.image,self.camera.camR.image,self.ui.maskCheck.isChecked())
@@ -92,20 +99,11 @@ class OrthoWindow(QWidget):
                 self.myIm=QImage(self.imL,self.imL.shape[1],self.imL.shape[0],QtGui.QImage.Format_Grayscale8)
             self.pix=QPixmap(self.myIm)
             self.leftScn.addPixmap(self.pix)
-            # if not self.ui.maskCheck.isChecked():
-            #     self.imR = cv2.cvtColor(self.imR, cv2.COLOR_BGR2RGB)
-            #     self.myIm=QImage(self.imR.data,self.imR.shape[1],self.imR.shape[0],QtGui.QImage.Format_RGB888)
-            # else:
-            #     self.myIm=QImage(self.imR.data,self.imR.shape[1],imR.shape[0],QtGui.QImage.Format_Grayscale8)
-            # # cvRGBImg = cv2.cvtColor(imR, cv2.COLOR_BGR2RGB)
-            
-            # self.pix=QPixmap(self.myIm)
-            # self.rightScn.addPixmap(self.pix)
 
     def mask(self,img):
         # Convert to HSV and mask colors
-        colorLower = (self.threshList[self.curColor][0], self.threshList[self.curColor][1], self.threshList[self.curColor][2])
-        colorUpper = (self.threshList[self.curColor][3], self.threshList[self.curColor][4], self.threshList[self.curColor][5])
+        colorLower = (self.ui.minHBar.value(),self.ui.minSBar.value(), self.ui.minVBar.value())
+        colorUpper = (self.ui.maxHBar.value(),self.ui.maxSBar.value(), self.ui.maxVBar.value())
         blurred = cv2.GaussianBlur(img, (5, 5), 0)
         hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
         mask = cv2.inRange(hsv, colorLower, colorUpper )
@@ -180,10 +178,6 @@ class OrthoWindow(QWidget):
             return centerL, centerR, self.combineImages(maskImageL, maskImageR)
         else:
             return centerL, centerR, self.combineImages(imageL,imageR)
-        # if bMasked:
-        #     return centerL, centerR, maskImageL, maskImageR
-        # else:
-        #     return centerL, centerR, imageL,imageR
 
 if __name__ == "__main__":
     #Set up stereo camera struct
