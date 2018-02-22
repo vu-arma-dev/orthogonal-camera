@@ -11,14 +11,17 @@ import cv2
 import numpy as np 
 import pickle
 
+_NUMCLR=4
+
 class OrthoWindow(QWidget):
     def __init__(self,camInput,masterWidget=None, parent=None):
         super(OrthoWindow,self).__init__()
         self.ui=Ui_Orthogonal_Form()
         self.ui.setupUi(self)
 
-        self.imR=[]
-        self.imL=[]
+        self.imCombine=[]
+        self.maskImageL=[]
+        self.maskImageR=[]
         self.Pix=QPixmap()
         self.myIm=QImage()
 
@@ -43,6 +46,12 @@ class OrthoWindow(QWidget):
         self.ui.colorChooseBox.valueChanged.connect(self.updateColorList)
         self.ui.saveBtn.clicked.connect(self.saveColors)
         self.ui.loadBtn.clicked.connect(self.loadColors)
+
+        #Set up publisher for pt Segmentation
+        ptTopicName="colorSegOrthogonal"
+        # self.ptPublisher=rospy.Publisher(ptTopicName,camPtMsg)
+        
+
 
     def closeEvent(self,closeEvent):
         self.updateColorList(self.ui.colorChooseBox.value())
@@ -89,21 +98,70 @@ class OrthoWindow(QWidget):
         self.timer.start(100) #100ms=10 Hz
 
     def updateIm(self):
-        ptx,pty,self.imL=self.calculate3DPoint(self.camera.camL.image,self.camera.camR.image,self.ui.maskCheck.isChecked())
+        ptLList,ptRList=self.calculate3DPoint(self.camera.camL.image,self.camera.camR.image,self.ui.maskCheck.isChecked())
 
-        if type(self.imL) != type(None) and type(self.imR) != type(None):
+        ipdb.set_trace()
+        # TODO ADD HERE: publish ptLList, ptRList
+        # self.ptPublisher.publish()
+
+        if type(self.imCombine) != type(None):
             if not self.ui.maskCheck.isChecked():
-                self.imL = cv2.cvtColor(self.imL, cv2.COLOR_BGR2RGB)
-                self.myIm=QImage(self.imL,self.imL.shape[1],self.imL.shape[0],QtGui.QImage.Format_RGB888)
+                self.imCombine = cv2.cvtColor(self.imCombine, cv2.COLOR_BGR2RGB)
+                self.myIm=QImage(self.imCombine,self.imCombine.shape[1],self.imCombine.shape[0],QtGui.QImage.Format_RGB888)
             else:
-                self.myIm=QImage(self.imL,self.imL.shape[1],self.imL.shape[0],QtGui.QImage.Format_Grayscale8)
+                self.myIm=QImage(self.imCombine,self.imCombine.shape[1],self.imCombine.shape[0],QtGui.QImage.Format_Grayscale8)
             self.pix=QPixmap(self.myIm)
             self.leftScn.addPixmap(self.pix)
 
-    def mask(self,img):
+
+    def calculate3DPoint(self,imageL, imageR,bMasked):
+        point3d = None
+
+        imExist=0;
+        # Process left image if it exists
+        (rows,cols,channels) = imageL.shape
+        if cols > 60 and rows > 60 :
+            imExist=1
+        (rows,cols,channels) = imageR.shape
+        if cols > 60 and rows > 60 :
+            imRExist=imExist and 1
+
+        if not imExist:
+            return None,None,None,None
+
+        centerL=[None]*_NUMCLR
+        radiusL=[None]*_NUMCLR
+        centerR=[None]*_NUMCLR
+        radiusR=[None]*_NUMCLR
+        for colorIndex in range(_NUMCLR):
+            self.maskImageL = self.mask(imageL,colorIndex)
+            centerL[colorIndex], radiusL[colorIndex] = self.getCentroid(self.maskImageL)
+        
+            self.maskImageR = self.mask(imageR,colorIndex)
+            centerR[colorIndex], radiusR[colorIndex] = self.getCentroid(self.maskImageR)
+
+            if(centerL[colorIndex] != None and centerR[colorIndex] != None):
+                cv2.circle(imageL, centerL[colorIndex], 2,(0, 255, 0), -1)
+                cv2.circle(imageR, centerR[colorIndex], 2,(0, 255, 0), -1)
+                cv2.circle(imageL, centerL[colorIndex], radiusL[colorIndex],(0, 255, 0), 1)
+                cv2.circle(imageR, centerR[colorIndex], radiusR[colorIndex],(0, 255, 0), 1)
+
+            if colorIndex==self.ui.colorChooseBox.value() and bMasked:
+                self.imCombine=self.combineImages(self.maskImageL, self.maskImageR)
+        if not bMasked:
+            self.imCombine=self.combineImages(imageL,imageR)
+
+        return centerL, centerR
+
+    def mask(self,img,curColor):
+        
         # Convert to HSV and mask colors
-        colorLower = (self.ui.minHBar.value(),self.ui.minSBar.value(), self.ui.minVBar.value())
-        colorUpper = (self.ui.maxHBar.value(),self.ui.maxSBar.value(), self.ui.maxVBar.value())
+        if curColor==self.ui.colorChooseBox.value():
+            colorLower = (self.ui.minHBar.value(),self.ui.minSBar.value(), self.ui.minVBar.value())
+            colorUpper = (self.ui.maxHBar.value(),self.ui.maxSBar.value(), self.ui.maxVBar.value())
+        else:
+            colorLower = (self.threshList[curColor][0],self.threshList[curColor][1],self.threshList[curColor][2])
+            colorUpper = (self.threshList[curColor][3],self.threshList[curColor][4],self.threshList[curColor][5])
         blurred = cv2.GaussianBlur(img, (5, 5), 0)
         hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
         mask = cv2.inRange(hsv, colorLower, colorUpper )
@@ -147,38 +205,6 @@ class OrthoWindow(QWidget):
         doubleImage[0:rows,cols:cols*2] = imageR
         return doubleImage
 
-    def calculate3DPoint(self,imageL, imageR,bMasked):
-        point3d = None
-        # Process left image if it exists
-        (rows,cols,channels) = imageL.shape
-        if cols > 60 and rows > 60 :
-            maskImageL = self.mask(imageL)
-            centerL, radiusL = self.getCentroid(maskImageL)
-
-        # if it doesn't exist, don't do anything
-        else:
-            return None, None, None, None
-
-        (rows,cols,channels) = imageR.shape
-        if cols > 60 and rows > 60 :
-            maskImageR = self.mask(imageR)
-            centerR, radiusR = self.getCentroid(maskImageR)
-        else:
-            return None, None,None, None
-
-        if(centerL != None and centerR != None):
-            # disparity = abs(centerL[0] - centerR[0])
-            cv2.circle(imageL, centerL, 2,(0, 255, 0), -1)
-            cv2.circle(imageR, centerR, 2,(0, 255, 0), -1)
-            cv2.circle(imageL, centerL, radiusL,(0, 255, 0), 1)
-            cv2.circle(imageR, centerR, radiusR,(0, 255, 0), 1)
-
-
-        if bMasked:
-            return centerL, centerR, self.combineImages(maskImageL, maskImageR)
-        else:
-            return centerL, centerR, self.combineImages(imageL,imageR)
-
 if __name__ == "__main__":
     #Set up stereo camera struct
     frameRate = 15
@@ -188,11 +214,10 @@ if __name__ == "__main__":
                          "/stereo/left/camera_info",
                          "/stereo/right/camera_info",
                           slop = slop)
-    
-    #Set up rosnode
-    rospy.init_node("stereo_cams_test")
-    rate = rospy.Rate(24) # 24hz
 
+    rospy.init_node("test_stereo_cams")
+    # rate=rospy.Rate(24)
+    
     #Set up qt GUI widget
     app = QtWidgets.QApplication(sys.argv)
     myWindow=OrthoWindow(cams)
