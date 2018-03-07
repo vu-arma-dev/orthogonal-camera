@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>621</width>
+    <width>637</width>
     <height>200</height>
    </rect>
   </property>
@@ -120,6 +120,26 @@
        </property>
       </widget>
      </item>
+     <item row="4" column="1">
+      <widget class="QScrollBar" name="minCbBar">
+       <property name="maximum">
+        <number>255</number>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="2">
+      <widget class="QScrollBar" name="maxCrBar">
+       <property name="maximum">
+        <number>255</number>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
      <item row="2" column="1">
       <widget class="QScrollBar" name="minVBar">
        <property name="maximum">
@@ -130,9 +150,57 @@
        </property>
       </widget>
      </item>
+     <item row="4" column="2">
+      <widget class="QScrollBar" name="maxCbBar">
+       <property name="maximum">
+        <number>255</number>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="3">
+      <widget class="QLabel" name="label_10">
+       <property name="text">
+        <string>Max Cb</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="3">
+      <widget class="QLabel" name="label_9">
+       <property name="text">
+        <string>Max Cr</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="1">
+      <widget class="QScrollBar" name="minCrBar">
+       <property name="maximum">
+        <number>255</number>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="0">
+      <widget class="QLabel" name="label_20">
+       <property name="text">
+        <string>Min Cb</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="0">
+      <widget class="QLabel" name="label_8">
+       <property name="text">
+        <string>Min Cr</string>
+       </property>
+      </widget>
+     </item>
     </layout>
    </item>
-   <item row="4" column="0">
+   <item row="5" column="0">
     <layout class="QGridLayout" name="gridLayout_3">
      <item row="0" column="4">
       <widget class="QCheckBox" name="maskCheck">

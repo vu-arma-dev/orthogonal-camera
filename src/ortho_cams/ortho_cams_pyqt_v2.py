@@ -35,10 +35,10 @@ class OrthoWindow(QWidget):
 
         self.prevColor=0
         self.curColor=0
-        self.threshList=[[0,0,0,255,255,255],\
-                         [5,5,5,100,100,100],\
-                         [0,0,0,255,255,255],\
-                         [0,0,0,255,255,255]]
+        self.threshList=[[0,0,0,255,255,255,0,0,255,255],\
+                         [5,5,5,100,100,100,0,0,255,255],\
+                         [0,0,0,255,255,255,0,0,255,255],\
+                         [0,0,0,255,255,255,0,0,255,255]]
         self.loadColors()
 
         self.colorChooseBox.valueChanged.connect(self.updateColorList)
@@ -72,6 +72,11 @@ class OrthoWindow(QWidget):
             self.maxSBar.setValue(self.threshList[curColorBox][4])
             self.maxVBar.setValue(self.threshList[curColorBox][5])
 
+            self.minCrBar.setValue(self.threshList[curColorBox][6])
+            self.minCbBar.setValue(self.threshList[curColorBox][7])
+            self.maxCrBar.setValue(self.threshList[curColorBox][8])
+            self.maxCbBar.setValue(self.threshList[curColorBox][9])
+
     def updateColorList(self,curColorBox):
         self.prevColor=self.curColor
         self.curColor=curColorBox
@@ -83,13 +88,23 @@ class OrthoWindow(QWidget):
         self.threshList[self.prevColor][4]=self.maxSBar.value()
         self.threshList[self.prevColor][5]=self.maxVBar.value()
 
+        self.threshList[self.prevColor][6]=self.minCrBar.value()
+        self.threshList[self.prevColor][7]=self.minCbBar.value()
+        self.threshList[self.prevColor][8]=self.maxCrBar.value()
+        self.threshList[self.prevColor][9]=self.maxCbBar.value()
+
         self.minHBar.setValue(self.threshList[curColorBox][0])
         self.minSBar.setValue(self.threshList[curColorBox][1])
         self.minVBar.setValue(self.threshList[curColorBox][2])
         self.maxHBar.setValue(self.threshList[curColorBox][3])
         self.maxSBar.setValue(self.threshList[curColorBox][4])
         self.maxVBar.setValue(self.threshList[curColorBox][5])
-
+    
+        self.minCrBar.setValue(self.threshList[curColorBox][6])
+        self.minCbBar.setValue(self.threshList[curColorBox][7])
+        self.maxCrBar.setValue(self.threshList[curColorBox][8])
+        self.maxCbBar.setValue(self.threshList[curColorBox][9])
+        
     def startTimer(self):
         self.timer.start(50) #50ms=20 Hz
 
@@ -152,12 +167,23 @@ class OrthoWindow(QWidget):
         if curColor==self.colorChooseBox.value():
             colorLower = (self.minHBar.value(),self.minSBar.value(), self.minVBar.value())
             colorUpper = (self.maxHBar.value(),self.maxSBar.value(), self.maxVBar.value())
+            colorLower2=(0,self.minCrBar.value(),self.minCbBar.value())
+            colorUpper2=(255,self.maxCrBar.value(),self.maxCbBar.value())
+
         else:
             colorLower = (self.threshList[curColor][0],self.threshList[curColor][1],self.threshList[curColor][2])
             colorUpper = (self.threshList[curColor][3],self.threshList[curColor][4],self.threshList[curColor][5])
+            colorLower2= (0,    self.threshList[curColor][6],  self.threshList[curColor][7])
+            colorUpper2= (255,  self.threshList[curColor][8],  self.threshList[curColor][9])
         blurred = cv2.GaussianBlur(img, (5, 5), 0)
         hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
         mask = cv2.inRange(hsv, colorLower, colorUpper )
+
+        yCrCb=cv2.cvtColor(blurred,cv2.COLOR_BGR2YCrCb)
+        
+        mask2=cv2.inRange(yCrCb,colorLower2,colorUpper2)
+
+        mask=mask&mask2
 
         # Refine mask
         mask = cv2.erode(mask, None, iterations=2)
